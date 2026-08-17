@@ -43,8 +43,10 @@ packages/core/src/
   actions.ts     — action inference from GitHub event types
   evaluator.ts   — event-specific rule evaluation, decision logic, default policy
   scoring.ts     — deterministic risk scoring 0–100
-  renderer.ts    — markdown verdict generation, audit JSON
+  renderer.ts    — markdown verdict generation, audit JSON, policy evidence binding
   fixtures.ts    — strict portable fixture parsing and deterministic execution
+  capabilities.ts — fail-closed capability manifests, evaluation, and audit hashing
+  policy-diff.ts  — value-free canonical policy fingerprints and structural diffs
   sarif.ts       — deterministic SARIF 2.1.0 rendering
   profiles.ts    — built-in policy profiles (minimal, strict-oss, security-sensitive)
   index.ts       — barrel export (all public API)
@@ -65,6 +67,7 @@ packages/core/tests/
   profiles.test.ts   — built-in profiles parse correctly
   integration.test.ts — end-to-end pipeline with fixtures
   fixtures-runner.test.ts — public fixture schema, runner, and loader contract
+  repository-policy.test.ts — checked-in policy and copyable-template schema contract
   fixtures/           — policies, events, exact outcomes, and corpus guidance
 
 packages/cli/src/
@@ -77,16 +80,23 @@ packages/cli/src/
   commands/fingerprint.ts — agentowners fingerprint
   commands/self-check.ts — versioned pre-PR machine contract
   commands/test.ts  — portable policy fixture runner
+  commands/capabilities.ts — capability manifest evaluation and audit output
+  commands/policy-diff.ts — deterministic value-free policy change evidence
 
 packages/cli/tests/
   check.test.ts      — SARIF output and invalid-format boundaries
   self-check.test.ts — output contract, exit codes, and hostile-ref coverage
   test-command.test.ts — fixture diagnostics, JSON output, and exit codes
+  capabilities.test.ts — capability output and denial exit contracts
+  policy-diff.test.ts — stable, value-free policy change contracts
+  config.test.ts      — Action mode and token validation contracts
 
 packages/github-action/src/
   index.ts    — main action entry
   github.ts   — GitHub API helpers (PR files, PR metadata)
   comment.ts  — sticky comment upsert (VERDICT_MARKER)
+  policy.ts   — trusted policy loading and policy evidence binding
+  config.ts   — fail-closed Action input validation
 
 .github/agents/
   policy-engineer.agent.md — tests-first implementation specialist
@@ -102,8 +112,13 @@ docs/specs/
   readme.md           — full product specification (canonical requirements)
   f1-policy-schema.md through f11-agent-self-check.md — per-feature specs
   f13-policy-fixtures.md — portable executable policy-suite contract
+  f14-policy-diff.md — value-free deterministic policy diff contract
+  f15-policy-bound-audit.md — policy digest and trusted-ref evidence contract
+  f16-action-mode.md — fail-closed Action mode input contract
 
 docs/ecosystem.md     — dated control-surface comparison and product boundaries
+docs/policy-reference.md — end-user policy authoring and evaluation guide
+docs/CMD-agents-team.md — evidence-first contributor coordination and review handoff
 docs/assets/          — maintained documentation and social-preview media
 
 .github/DISCUSSION_TEMPLATE/
@@ -113,6 +128,11 @@ CONTRIBUTING.md       — contribution lanes, review contract, and required evid
 SKILL.md              — compact execution workflow for compatible coding agents
 
 scripts/
+  capability-demo.mjs   — fail-closed capability manifest simulator and audit
+  capability-demo.test.mjs — deterministic denial, budget, and redaction tests
+  marketplace-metadata.mjs — Marketplace metadata and distribution parity gate
+  release-automation.mjs — fail-closed package publication and tag primitives
+  publish-packages.mjs / update-major-tag.mjs — guarded release entry points
   generate-json-schema.mjs   — regenerate or check the authoring schema
   verify-release.mjs         — version, export, CLI, and Action bundle checks
   verify-packed-packages.mjs — isolated npm install, audit, and runtime smoke checks
@@ -178,6 +198,11 @@ These are immutable safety rules. Never change them:
 | Fail closed | Unknown agent defaults to `require_approval`, never silently `allow` |
 | Trusted policy | Pull requests are evaluated against policy from the immutable base commit |
 | Git option boundary | Untrusted refs must follow `--end-of-options` |
+| Identity confidence | Only explicit actors and built-in verified bots are `confirmed`; labels, commit metadata, and event text remain spoofable evidence |
+
+The experimental capability boundary is specified in `AGENT_CAPABILITIES.md`.
+Its demo is deliberately non-runtime: it makes no network calls, reads no real
+secrets, and cannot substitute for OS/container isolation or GitHub permissions.
 
 ## How to add a new feature
 
@@ -277,6 +302,11 @@ bundle whenever Action source changes.
 `packages/core/agentowners.schema.json` is also generated. Never edit it by
 hand. After changing `schema.ts` or `json-schema.ts`, run
 `pnpm generate:schema`; `pnpm verify:schema` fails on drift.
+
+Marketplace verification parses both Action metadata files and requires parity
+except for their distribution-specific `author` and `runs.main` values.
+Run `pnpm demo` for the network-free first-run proof; it invokes the built CLI
+and capability simulator and must not be mistaken for runtime containment.
 
 ## What NOT to build (v1 non-goals)
 
